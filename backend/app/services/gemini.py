@@ -102,63 +102,79 @@ class GeminiService:
         texts: List[str],
         task_type: str = "RETRIEVAL_DOCUMENT",
     ) -> List[List[float]]:
-        """Executes embed_content with exponential backoff on rate limits and dimension validation."""
+        """Executes embed_content with exponential backoff on rate limits, dimension validation, and model fallback."""
         max_retries = self.settings.EMBEDDING_MAX_RETRIES
-        delay = 1.0
         expected_dim = self.settings.EMBEDDING_DIMENSION
 
-        for attempt in range(1, max_retries + 1):
-            try:
-                config = types.EmbedContentConfig(
-                    task_type=task_type,
-                    output_dimensionality=expected_dim,
-                )
-                response = self.client.models.embed_content(
-                    model=self.settings.GEMINI_EMBEDDING_MODEL,
-                    contents=texts,
-                    config=config,
-                )
-                vectors = []
-                for item in response.embeddings:
-                    vec = list(item.values)
-                    # Validate vector dimension strictly
-                    if len(vec) != expected_dim:
-                        err_msg = (
-                            f"Embedding dimension mismatch: expected {expected_dim}, "
-                            f"but model '{self.settings.GEMINI_EMBEDDING_MODEL}' returned {len(vec)}."
-                        )
-                        logger.error(err_msg)
-                        raise AppException(
-                            status_code=500,
-                            code="EMBEDDING_DIMENSION_MISMATCH",
-                            message=err_msg,
-                        )
-                    vectors.append(vec)
-                return vectors
+        candidate_models = [
+            self.settings.GEMINI_EMBEDDING_MODEL,
+            "gemini-embedding-001",
+            "text-embedding-004",
+        ]
+        seen = set()
+        models_to_try = [m for m in candidate_models if m and not (m in seen or seen.add(m))]
 
-            except AppException:
-                raise
-            except Exception as exc:
-                is_rate_limit = "429" in str(exc) or "quota" in str(exc).lower() or isinstance(exc, APIError)
-                if attempt == max_retries or not is_rate_limit:
-                    logger.error("Gemini embedding failure after %d attempts: %s", attempt, exc)
-                    raise AppException(
-                        status_code=502,
-                        code="EMBEDDING_UNAVAILABLE",
-                        message="Gemini embedding service is currently unavailable. Please try again shortly.",
-                    ) from exc
+        last_exc = None
+        for model_name in models_to_try:
+            delay = 1.0
+            for attempt in range(1, max_retries + 1):
+                try:
+                    config = types.EmbedContentConfig(
+                        task_type=task_type,
+                        output_dimensionality=expected_dim,
+                    )
+                    response = self.client.models.embed_content(
+                        model=model_name,
+                        contents=texts,
+                        config=config,
+                    )
+                    vectors = []
+                    for item in response.embeddings:
+                        vec = list(item.values)
+                        # Validate vector dimension strictly
+                        if len(vec) != expected_dim:
+                            err_msg = (
+                                f"Embedding dimension mismatch: expected {expected_dim}, "
+                                f"but model '{model_name}' returned {len(vec)}."
+                            )
+                            logger.error(err_msg)
+                            raise AppException(
+                                status_code=500,
+                                code="EMBEDDING_DIMENSION_MISMATCH",
+                                message=err_msg,
+                            )
+                        vectors.append(vec)
+                    return vectors
 
-                sleep_time = delay + random.uniform(0.1, 0.5)
-                logger.warning(
-                    "Gemini rate limit encountered (attempt %d/%d). Retrying in %.2fs...",
-                    attempt,
-                    max_retries,
-                    sleep_time,
-                )
-                time.sleep(sleep_time)
-                delay *= 2.0
+                except AppException:
+                    raise
+                except Exception as exc:
+                    last_exc = exc
+                    is_rate_limit = "429" in str(exc) or "quota" in str(exc).lower() or isinstance(exc, APIError)
+                    is_not_found = "404" in str(exc) or "not found" in str(exc).lower()
+                    if is_not_found:
+                        logger.warning("Embedding model '%s' not found or deprecated, trying fallback...", model_name)
+                        break
 
-        return []
+                    if attempt == max_retries or not is_rate_limit:
+                        logger.error("Gemini embedding failure for model '%s' (attempt %d/%d): %s", model_name, attempt, max_retries, exc)
+                        break
+
+                    sleep_time = delay + random.uniform(0.1, 0.5)
+                    logger.warning(
+                        "Gemini rate limit encountered (attempt %d/%d). Retrying in %.2fs...",
+                        attempt,
+                        max_retries,
+                        sleep_time,
+                    )
+                    time.sleep(sleep_time)
+                    delay *= 2.0
+
+        raise AppException(
+            status_code=502,
+            code="EMBEDDING_UNAVAILABLE",
+            message="Gemini embedding service is currently unavailable. Please try again shortly.",
+        ) from last_exc
 
     def generate_grounded_answer(
         self,

@@ -62,7 +62,7 @@ class Settings(BaseSettings):
         description="Gemini model for grounded generation",
     )
     GEMINI_EMBEDDING_MODEL: str = Field(
-        default="text-embedding-004",
+        default="gemini-embedding-001",
         description="Gemini model for text embeddings",
     )
     EMBEDDING_DIMENSION: int = Field(
