@@ -194,7 +194,14 @@ class GeminiService:
             response_schema=GroundedAnswerPayload,
         )
 
-        candidate_models = [self.settings.GEMINI_GENERATION_MODEL, "gemini-flash-latest", "gemini-3.5-flash", "gemini-3.8-flash"]
+        candidate_models = [
+            self.settings.GEMINI_GENERATION_MODEL,
+            "gemini-flash-lite-latest",
+            "gemini-3.1-flash-lite",
+            "gemini-3.5-flash-lite",
+            "gemini-3-flash-preview",
+            "gemini-flash-latest",
+        ]
         seen_models = set()
         models_to_try = []
         for m in candidate_models:
@@ -237,13 +244,31 @@ class GeminiService:
                 except Exception as exc:
                     last_error = exc
                     err_msg = str(exc)
-                    # If model is deprecated (404), break immediately to try next model in candidate list
-                    if "404" in err_msg or "not found" in err_msg.lower() or "no longer available" in err_msg.lower():
-                        logger.warning("Model %s is unavailable/deprecated: %s. Trying fallback model...", model_name, exc)
+                    # If model is deprecated (404) or quota exhausted (429), break immediately to try next model in candidate list
+                    if (
+                        "404" in err_msg
+                        or "not found" in err_msg.lower()
+                        or "no longer available" in err_msg.lower()
+                        or "429" in err_msg
+                        or "resource_exhausted" in err_msg.lower()
+                        or "quota" in err_msg.lower()
+                    ):
+                        logger.warning(
+                            "Model %s unavailable or quota exhausted: %s. Trying fallback model...",
+                            model_name,
+                            exc,
+                        )
                         break
 
                     sleep_time = delay + random.uniform(0.1, 0.4)
-                    logger.warning("Gemini generation error on %s (attempt %d/%d). Retrying in %.2fs: %s", model_name, attempt, max_retries, sleep_time, exc)
+                    logger.warning(
+                        "Gemini generation error on %s (attempt %d/%d). Retrying in %.2fs: %s",
+                        model_name,
+                        attempt,
+                        max_retries,
+                        sleep_time,
+                        exc,
+                    )
                     time.sleep(sleep_time)
                     delay *= 2.0
 

@@ -18,7 +18,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_GENERATION_MODEL
-        value: gemini-flash-latest
+        value: gemini-flash-lite-latest
       - key: GEMINI_EMBEDDING_MODEL
         value: gemini-embedding-001
       - key: EMBEDDING_DIMENSION

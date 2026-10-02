@@ -58,7 +58,7 @@ class Settings(BaseSettings):
         description="Google Gemini API Key",
     )
     GEMINI_GENERATION_MODEL: str = Field(
-        default="gemini-flash-latest",
+        default="gemini-flash-lite-latest",
         description="Gemini model for grounded generation",
     )
     GEMINI_EMBEDDING_MODEL: str = Field(
