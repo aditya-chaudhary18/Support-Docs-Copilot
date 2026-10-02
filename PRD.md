@@ -147,18 +147,23 @@ These are thin libraries required to make the approved stack work. They are not 
 
 | Purpose | Library (or equivalent) | Why it is necessary |
 |---|---|---|
-| Frontend build tooling | Vite | React + TypeScript requires a bundler/dev server |
-| Frontend routing | React Router | Multi-screen SPA navigation |
-| Markdown rendering in chat | react-markdown (or equivalent) | Gemini answers may contain Markdown |
-| Backend ASGI server | Uvicorn | Runs FastAPI |
-| Postgres driver / ORM | SQLAlchemy 2.x + a Postgres driver (psycopg) | Database access; parameterized queries |
-| pgvector client | `pgvector` Python package | Vector type support in SQLAlchemy |
-| Migrations | Alembic | Reproducible schema management |
-| R2 access | boto3 (R2 is S3-compatible) | Official-compatible S3 API client |
-| Gemini access | Google GenAI Python SDK | Official Gemini client |
-| PDF extraction | pypdf or PyMuPDF | Page-aware PDF text extraction |
-| DOCX extraction | python-docx | DOCX paragraph/heading extraction |
-| Testing | pytest, httpx (backend); Vitest + Testing Library (frontend) | Test tooling |
+| Frontend build tooling | Vite (v8.x) | React + TypeScript bundler and fast dev server |
+| Frontend framework | React 19 + TypeScript (strict) | Component-driven reactive UI with compile-time type safety |
+| Styling & UI Tokens | TailwindCSS (v4.x) | Utility-first responsive design tokens and dark theme grid |
+| Frontend routing | React Router (v7.x) | Multi-screen SPA navigation and deep linking |
+| Data fetching & polling | SWR (v2.x) | Stale-while-revalidate client cache and document ingestion polling |
+| Markdown rendering in chat | react-markdown + remark-gfm | Formatted streaming/static Gemini responses with tables and code blocks |
+| UI Primitives & Icons | Base UI, Sonner, Lucide React | Accessible headless dialogs, toasts, and UI iconography |
+| Backend ASGI server | Uvicorn (v0.30+) | High-performance ASGI server for FastAPI |
+| Backend framework | FastAPI (v0.115+) + Pydantic v2 | High-performance async REST API with schema validation |
+| Postgres driver / ORM | SQLAlchemy 2.x + psycopg 3 (binary) | Database ORM, connection pooling, and parameterized queries |
+| pgvector client | `pgvector` Python package | Native vector type support and HNSW cosine distance queries |
+| Migrations | Alembic (v1.13+) | Reproducible schema management and version control |
+| R2 access | boto3 (R2 is S3-compatible) | S3-compatible client for Cloudflare R2 object storage |
+| Gemini access | Google GenAI Python SDK (`google-genai`) | Official client for Gemini 2.5 Flash and text-embedding-004 |
+| PDF extraction | pypdf (v5.x) | Page-aware PDF text extraction with metadata preservation |
+| DOCX extraction | python-docx (v1.1+) | DOCX paragraph and heading hierarchy extraction |
+| Testing | pytest, pytest-asyncio, httpx (backend); Vitest (frontend) | Automated unit, security, and integration test suites |
 
 ### 3.3 Explicitly NOT USED
 
