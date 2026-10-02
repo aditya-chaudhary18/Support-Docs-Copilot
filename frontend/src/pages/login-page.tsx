@@ -231,22 +231,26 @@ export function LoginPage() {
               )}
 
               {/* Google Sign In */}
-              <div className="mb-4">
-                <GoogleSignInButton
-                  text="signin_with"
-                  onSuccess={() => navigate(from, { replace: true })}
-                />
-              </div>
+              {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+                <>
+                  <div className="mb-4">
+                    <GoogleSignInButton
+                      text="signin_with"
+                      onSuccess={() => navigate(from, { replace: true })}
+                    />
+                  </div>
 
-              {/* Divider */}
-              <div className="relative flex items-center justify-center my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-[#243545]"></div>
-                </div>
-                <div className="relative px-3 bg-[#111827] text-[11px] font-mono uppercase tracking-wider text-[#86948a]">
-                  or continue with email
-                </div>
-              </div>
+                  {/* Divider */}
+                  <div className="relative flex items-center justify-center my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-[#243545]"></div>
+                    </div>
+                    <div className="relative px-3 bg-[#111827] text-[11px] font-mono uppercase tracking-wider text-[#86948a]">
+                      or continue with email
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Form */}
               <form className="flex flex-col gap-4" onSubmit={handleSubmit}>

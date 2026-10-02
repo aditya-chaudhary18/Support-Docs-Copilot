@@ -153,6 +153,10 @@ export function GoogleSignInButton({
       ? 'Sign in with Google'
       : 'Continue with Google'
 
+  if (!googleClientId) {
+    return null
+  }
+
   return (
     <div className="w-full">
       {/* Invisible container for native Google Identity iframe if rendered */}
