@@ -44,15 +44,10 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           <Link
             to="/chat"
             onClick={onNavigate}
-            className="w-full flex items-center justify-between px-space-md py-space-sm rounded bg-primary-container text-on-primary-container font-headline-sm text-body-sm font-medium hover:bg-primary transition-all shadow-[0_0_12px_-3px_rgba(16,185,129,0.3)]"
+            className="w-full flex items-center justify-center gap-space-xs px-space-md py-space-sm rounded bg-primary-container text-on-primary-container font-headline-sm text-body-sm font-medium hover:bg-primary transition-all shadow-[0_0_12px_-3px_rgba(16,185,129,0.3)]"
           >
-            <span className="flex items-center gap-space-xs">
-              <span className="material-symbols-outlined text-[16px]">add</span>
-              <span>New Chat</span>
-            </span>
-            <kbd className="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-on-primary-container/20 text-on-primary-container border border-on-primary-container/20">
-              ⌘N
-            </kbd>
+            <span className="material-symbols-outlined text-[16px]">add</span>
+            <span>New Chat</span>
           </Link>
         </div>
 
