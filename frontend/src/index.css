@@ -1,0 +1,308 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: 'Geist', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, monospace;
+  --font-headline-xl: 'Geist', sans-serif;
+  --font-headline-lg: 'Geist', sans-serif;
+  --font-headline-md: 'Geist', sans-serif;
+  --font-headline-sm: 'Geist', sans-serif;
+  --font-body-lg: 'Geist', sans-serif;
+  --font-body-md: 'Geist', sans-serif;
+  --font-body-sm: 'Geist', sans-serif;
+  --font-code-body: 'JetBrains Mono', monospace;
+  --font-code-inline: 'JetBrains Mono', monospace;
+  --font-citation-tag: 'JetBrains Mono', monospace;
+  --font-label-sm: 'JetBrains Mono', monospace;
+  --font-label-md: 'JetBrains Mono', monospace;
+
+  /* Stitch Precision RAG Color System (Dynamic Theme Supported) */
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-primary: var(--primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary: var(--on-primary);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-secondary: var(--secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary: var(--on-secondary);
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-container: var(--tertiary-container);
+  --color-error: var(--error);
+  --color-error-container: var(--error-container);
+
+  /* Stitch Homepage Brand Tokens */
+  --color-brand-surface: #07090e;
+  --color-brand-card: #0d131b;
+  --color-brand-panel: #111722;
+  --color-brand-border: #1e293b;
+  --color-brand-borderLight: #334155;
+  --color-brand-border-light: #334155;
+  --color-brand-accent: #10b981;
+  --color-brand-cyan: #06b6d4;
+
+  /* Stitch Spacing System */
+  --spacing-space-xs: 0.25rem;
+  --spacing-space-sm: 0.5rem;
+  --spacing-space-md: 0.75rem;
+  --spacing-space-lg: 1.25rem;
+  --spacing-space-xl: 2rem;
+  --spacing-gutter: 1rem;
+  --spacing-gutter-lg: 1.5rem;
+
+  /* Glow Shadows */
+  --shadow-emerald-glow: 0 0 35px -5px rgba(16, 185, 129, 0.25);
+  --shadow-cyan-glow: 0 0 35px -5px rgba(6, 182, 212, 0.25);
+  --shadow-terminal-glow: 0 10px 40px -10px rgba(0, 0, 0, 0.8), 0 0 20px 0 rgba(16, 185, 129, 0.08);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  color-scheme: light;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #059669;
+  --primary-foreground: #ffffff;
+  --secondary: #0284c7;
+  --secondary-foreground: #ffffff;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #e11d48;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #059669;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #059669;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #059669;
+  --success: #059669;
+  --success-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #ffffff;
+
+  /* Stitch Light Surface Tokens */
+  --surface: #f8fafc;
+  --surface-dim: #f1f5f9;
+  --surface-bright: #ffffff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f8fafc;
+  --surface-container: #f1f5f9;
+  --surface-container-high: #e2e8f0;
+  --surface-container-highest: #cbd5e1;
+  --outline: #64748b;
+  --outline-variant: #e2e8f0;
+  --on-surface: #0f172a;
+  --on-surface-variant: #475569;
+  --primary-container: #10b981;
+  --on-primary: #ffffff;
+  --on-primary-container: #ffffff;
+  --secondary-container: #38bdf8;
+  --on-secondary: #ffffff;
+  --tertiary: #0d9488;
+  --tertiary-container: #2dd4bf;
+  --error: #e11d48;
+  --error-container: #ffe4e6;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #090f16;
+  --foreground: #dde3ee;
+  --card: #131922;
+  --card-foreground: #dde3ee;
+  --popover: #131922;
+  --popover-foreground: #dde3ee;
+  --primary: #4edea3;
+  --primary-foreground: #003824;
+  --secondary: #4cd7f6;
+  --secondary-foreground: #003640;
+  --muted: #1a2028;
+  --muted-foreground: #86948a;
+  --accent: #1a2028;
+  --accent-foreground: #dde3ee;
+  --destructive: #ffb4ab;
+  --border: #243545;
+  --input: #243545;
+  --ring: #4edea3;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: #090f16;
+  --sidebar-foreground: #dde3ee;
+  --sidebar-primary: #4edea3;
+  --sidebar-primary-foreground: #003824;
+  --sidebar-accent: #1a2028;
+  --sidebar-accent-foreground: #dde3ee;
+  --sidebar-border: #243545;
+  --sidebar-ring: #4edea3;
+  --success: #4edea3;
+  --success-foreground: #003824;
+  --warning: #ffbd2e;
+  --warning-foreground: #00201c;
+
+  /* Stitch Obsidian Dark Surface Tokens (Exact Stitch Reference) */
+  --surface: #0e141c;
+  --surface-dim: #0e141c;
+  --surface-bright: #343a43;
+  --surface-container-lowest: #090f16;
+  --surface-container-low: #161c24;
+  --surface-container: #1a2028;
+  --surface-container-high: #242a33;
+  --surface-container-highest: #2f353e;
+  --outline: #86948a;
+  --outline-variant: #3c4a42;
+  --on-surface: #dde3ee;
+  --on-surface-variant: #bbcabf;
+  --primary-container: #10b981;
+  --on-primary: #003824;
+  --on-primary-container: #00422b;
+  --secondary-container: #03b5d3;
+  --on-secondary: #003640;
+  --tertiary: #4fdbc8;
+  --tertiary-container: #0db6a4;
+  --error: #ffb4ab;
+  --error-container: #93000a;
+}
+
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans antialiased;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  code, kbd, pre {
+    @apply font-mono;
+  }
+}
+
+/* Stitch Obsidian Precision RAG Utilities (Older Homepage UI Exact Square Grid) */
+.bg-grid-pattern {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(30, 41, 59, 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(30, 41, 59, 0.35) 1px, transparent 1px);
+}
+
+/* Technical Blueprint Grid for Login & Dark Auth Pages (Exact Reference Match) */
+.dark-grid-bg {
+  background-color: #07090e;
+  background-size: 44px 44px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+}
+
+/* Ensure interactive inputs and dialog overlays remain solid and fully legible */
+input, textarea, select, [role="menu"], [role="listbox"], [role="dialog"] {
+  background-image: none !important;
+}
+
+.glass-card {
+  background: linear-gradient(180deg, rgba(17, 23, 34, 0.85) 0%, rgba(13, 19, 27, 0.95) 100%);
+  backdrop-filter: blur(12px);
+  border: 1px solid #1e293b;
+}
+
+.glass-card-hover:hover {
+  border-color: #10b981;
+  box-shadow: 0 0 25px rgba(16, 185, 129, 0.15);
+}
+
+.font-mono-code {
+  font-family: 'JetBrains Mono', 'Geist Mono', monospace;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
