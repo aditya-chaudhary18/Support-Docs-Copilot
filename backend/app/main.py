@@ -226,6 +226,16 @@ def create_app() -> FastAPI:
 
 
     # 4. Route Registration
+    @app.get("/", tags=["Root"])
+    def root_endpoint():
+        return {
+            "status": "ok",
+            "app": "Trace API",
+            "version": "1.0.0",
+            "health": f"{settings.API_BASE_PATH}/health",
+            "docs": "/docs",
+        }
+
     # Root health probe for container infrastructure
     app.include_router(health_router)
 
