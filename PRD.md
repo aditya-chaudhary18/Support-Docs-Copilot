@@ -852,12 +852,20 @@ Because sources are snapshotted in `messages.sources`, historical citations rema
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/documents/upload` | Upload and start processing a document |
-| GET | `/api/documents` | List documents |
-| GET | `/api/documents/{id}` | Get one document (also used to poll status) |
+| GET | `/api/documents` | List documents with pagination and status filters |
+| GET | `/api/documents/{id}` | Get one document metadata and ingestion status |
+| GET | `/api/documents/{id}/chunks` | Retrieve raw indexed vector chunks for a document |
 | DELETE | `/api/documents/{id}` | Delete a document, its chunks, and its R2 object |
 | POST | `/api/chat` | Ask a question and get a cited answer |
-| GET | `/api/conversations` | List conversations |
-| GET | `/api/conversations/{id}` | Get a conversation with messages and sources |
+| GET | `/api/conversations` | List user conversations |
+| GET | `/api/conversations/{id}` | Get a conversation with messages and grounded sources |
+| PATCH | `/api/conversations/{id}/scope` | Dynamically update active document grounding scope |
+| GET | `/api/conversations/{id}/export` | Export conversation session as Markdown or PDF |
+| GET | `/api/dashboard/stats` | System metrics, document counters, and usage stats |
+| POST | `/api/auth/register` | Register new user account |
+| POST | `/api/auth/login` | Authenticate with email and password |
+| POST | `/api/auth/google` | Authenticate via Google OAuth2 ID token |
+| GET | `/api/auth/me` | Fetch authenticated user profile |
 | GET | `/api/health` | Liveness/readiness check |
 
 ### 15.2 `POST /api/documents/upload`
@@ -998,14 +1006,16 @@ Because sources are snapshotted in `messages.sources`, historical citations rema
 
 ### 16.1 Required Screens
 
-| # | Screen | Route (suggested) | Contents |
+| # | Screen | Route | Contents |
 |---|---|---|---|
-| 1 | **Dashboard** | `/` | Summary cards (documents total / ready / failed), recent documents, recent conversations, primary actions ("Upload document", "Ask a question"), onboarding empty state |
-| 2 | **Document management** | `/documents` | Table/list: filename, type, size, uploaded date, status badge, chunk count, error message, delete action; auto-refresh while any document is `processing` |
-| 3 | **Upload interface** | Modal or `/documents/upload` | Drag-and-drop + file picker, client-side pre-validation (type/size), progress indicator, per-file result, duplicate/unsupported/too-large messages |
-| 4 | **Chat interface** | `/chat`, `/chat/:conversationId` | See §17 |
-| 5 | **Source/citation display** | Within chat | Inline `[S#]` markers, sources list, expandable excerpts (§17) |
-| 6 | **Conversation history** | Sidebar or `/history` | List of conversations by recency; select to reopen |
+| 1 | **Home** | `/` | Hero landing experience, feature highlights, direct entry points to Chat & Upload |
+| 2 | **Dashboard** | `/dashboard` | Summary metrics cards, quick actions, recent documents, recent conversations, system health status |
+| 3 | **Chat (Ask & Trace)** | `/chat`, `/chat/:conversationId` | Split-pane workspace (adjustable panes), active document scope selector modal, retrieved grounded sources panel, chunk preview modal, session export dialog (.md/.pdf) |
+| 4 | **Document management** | `/documents` | Document catalog, search/filter, upload dropzone with multi-file queue, real-time status badges, chunk counters, delete action |
+| 5 | **Document detail & viewer** | `/documents/:id` | Document metadata, Cloudflare R2 raw document viewer, full vector chunk explorer |
+| 6 | **Conversation history** | `/conversations` | Complete list of past conversations with search, timestamps, message counts, and resumption |
+| 7 | **Authentication** | `/login`, `/register` | Secure email/password login, registration, and Google OAuth2 Sign-In |
+| 8 | **Settings** | `/settings` | Profile management, appearance theme switcher, backend connection status, RAG pipeline parameters |
 
 ### 16.2 UI Qualities
 
@@ -1298,44 +1308,72 @@ Kubernetes, AWS infrastructure, Redis server, Qdrant server, dedicated VM.
 Monorepo:
 
 ```
-support-docs-copilot/
+Support-Docs-Copilot/
 │
 ├── backend/
 │   ├── app/
-│   │   ├── api/                # FastAPI routers: documents, chat, conversations, health
-│   │   ├── core/               # settings, logging, request-ID middleware, error handlers, rate limiting, security helpers
-│   │   ├── db/                 # engine/session, Alembic env, migrations, repositories
-│   │   ├── models/             # SQLAlchemy models: User, Document, DocumentChunk, Conversation, Message
-│   │   ├── schemas/            # Pydantic request/response models, Gemini output schema
-│   │   ├── services/           # document_service, chat_service, storage_service (R2), gemini_service
-│   │   ├── rag/                # extractors/, cleaner, chunker, embedder, retriever, context_builder, prompt, citation_builder, pipeline
-│   │   └── main.py             # FastAPI app factory, middleware, router registration
+│   │   ├── api/
+│   │   │   ├── routes/         # FastAPI routers: auth, chat, conversations, dashboard, documents
+│   │   │   └── __init__.py     # central API router registration
+│   │   ├── core/               # config/settings, logging, security/JWT, rate limiting, exception handlers
+│   │   ├── db/                 # engine/session, base models, repositories
+│   │   ├── models/             # SQLAlchemy ORM models: User, Document, DocumentChunk, Conversation, Message
+│   │   ├── schemas/            # Pydantic v2 request/response schemas, Gemini structured output models
+│   │   ├── services/           # auth_service, chat_service, conversation_service, gemini, google_auth_service,
+│   │   │                       # ingestion, pdf_export_service, storage (Cloudflare R2)
+│   │   ├── rag/                # extractors/, cleaner, chunker, embedder, retriever, context_builder,
+│   │   │                       # prompt, citation_builder, pipeline
+│   │   └── main.py             # FastAPI app factory, CORS, exception handlers, health route
 │   │
-│   ├── alembic/                # migrations (or under app/db/)
-│   ├── tests/                  # unit/, api/, rag/, fixtures/
-│   ├── requirements.txt
-│   └── Dockerfile
+│   ├── alembic/                # database migrations & migration environment
+│   ├── tests/                  # api/, fixtures/, rag/, security/, unit/, conftest.py
+│   ├── requirements.txt        # pinned backend Python dependencies
+│   └── Dockerfile              # backend container specification
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── api/                # typed API client
 │   │   ├── components/
-│   │   ├── pages/              # Dashboard, Documents, Chat
-│   │   ├── hooks/
-│   │   ├── types/
-│   │   └── main.tsx
-│   ├── public/
-│   ├── package.json
-│   └── Dockerfile
+│   │   │   ├── auth/           # Google Sign-In button, protected route wrapper
+│   │   │   ├── chat/           # chat input, message list, chunk preview modal, document scope selector, export dialog
+│   │   │   ├── citations/      # inline citation badge, citation card, citations inspector section
+│   │   │   ├── conversations/  # conversation card
+│   │   │   ├── dashboard/      # quick actions, recent documents/conversations cards, stats overview, system status
+│   │   │   ├── documents/      # actions menu, chunk explorer, status badge, raw viewer modal, catalog table, dropzone
+│   │   │   ├── layout/         # app shell, confirmation dialog, error state, page header, theme provider
+│   │   │   ├── profile/        # profile avatar, dropdown, theme selector
+│   │   │   ├── settings/       # appearance, backend connection, profile, RAG parameter cards
+│   │   │   ├── sidebar/        # app sidebar, navigation items, trace logo, user menu
+│   │   │   └── ui/             # accessible Tailwind UI design system (buttons, dialogs, inputs, tables, etc.)
+│   │   ├── pages/              # Home, Chat (Ask & Trace), Dashboard, Documents, DocumentDetail, Conversations,
+│   │   │                       # Login, Register, Settings
+│   │   ├── hooks/              # useAuth, useChat, useConversations, useDocuments, useDocumentUpload, useSystem, useTheme
+│   │   ├── services/           # api-client, chat-service, conversations-service, documents-service, system-service, mock-store
+│   │   ├── lib/                # api, export, adapters, files, format, swr-keys, utils, mock-data
+│   │   ├── types/              # TypeScript domain types & interfaces
+│   │   ├── tests/              # frontend component and unit test suites
+│   │   ├── App.tsx             # main React router application
+│   │   ├── main.tsx            # Vite client bootstrap
+│   │   └── index.css           # Tailwind design tokens, typography, dark grid background
+│   │
+│   ├── public/                 # static favicons, brand icons, placeholder assets
+│   ├── package.json            # frontend dependencies and npm scripts
+│   ├── vite.config.ts          # Vite bundler configuration & dev server proxy
+│   ├── tsconfig.json           # TypeScript build configuration
+│   └── Dockerfile              # frontend multi-stage container specification
 │
 ├── data/
-│   └── README.md               # explains contents; see rule below
+│   └── documents/              # local document placeholder (.gitkeep, README.md; cloud R2 is source of truth)
 │
-├── docker-compose.yml          # backend + frontend only (no databases)
-├── .env.example
-├── .gitignore
-├── README.md
-└── PRD.md
+├── evaluation/                 # RAG evaluation benchmark datasets, evaluation scripts & README
+│
+├── docker-compose.yml          # optional multi-container development/deployment configuration
+├── .env.example                # comprehensive sanitized environment template
+├── .gitignore                  # repository protection rules (excludes secrets, caches, IDE configs, local uploads)
+├── README.md                   # developer documentation & setup guide
+├── PRD.md                      # product requirements & architectural specifications
+├── neon.ts                     # Neon PostgreSQL serverless configuration
+├── neon.d.ts                   # Neon TypeScript declarations
+└── tsconfig.json               # root workspace TypeScript configuration
 ```
 
 **`data/` rule:** `data/` **must not** hold persistent uploaded documents. It may contain only small, committed, non-sensitive **sample fixtures and evaluation files** (e.g., `data/samples/` and `data/eval/eval_set.json`) used for demos, tests, and evaluation. Its README shall state that user uploads live only in Cloudflare R2. `.gitignore` shall exclude `.env`, temp files, and any accidental upload artifacts.
