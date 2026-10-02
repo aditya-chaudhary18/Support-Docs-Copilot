@@ -317,7 +317,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     }
     console.error('[Trace API] Network request failed to URL:', url, error)
     throw new ApiError(
-      'Unable to connect to the backend. Please check that the server is running.',
+      `Unable to connect to backend at ${url}. Please check that the server is running.`,
       0,
       'BACKEND_UNAVAILABLE'
     )
