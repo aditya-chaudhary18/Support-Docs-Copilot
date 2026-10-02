@@ -315,6 +315,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     if (error instanceof Error && error.name === 'AbortError') {
       throw new ApiError('Request was aborted.', 499, 'CANCELLED')
     }
+    console.error('[Trace API] Network request failed to URL:', url, error)
     throw new ApiError(
       'Unable to connect to the backend. Please check that the server is running.',
       0,
