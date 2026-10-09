@@ -119,23 +119,48 @@ def google_login(
     google_data = verify_google_credential(payload.credential, settings)
     email = google_data["email"]
     name = google_data["name"]
+    google_sub = google_data["google_id"]
 
-    user = db.scalar(select(User).where(User.email == email))
+    # 1. Lookup user by explicit google_id identity
+    user = db.scalar(select(User).where(User.google_id == google_sub))
     if not user:
-        # Create a new user with Google profile
-        user = User(
-            id=uuid.uuid4(),
-            email=email,
-            display_name=name,
-            password_hash=None,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        # 2. Check if a user with this email address already exists
+        user_by_email = db.scalar(select(User).where(User.email == email))
+        if user_by_email:
+            # Account-linking safety: do not silently merge an existing password account
+            if user_by_email.password_hash is not None and user_by_email.google_id != google_sub:
+                raise AppException(
+                    status_code=409,
+                    code="ACCOUNT_EXISTS_WITH_PASSWORD",
+                    message=(
+                        "An account with this email was registered using a password. "
+                        "Please sign in with your email and password to access your account."
+                    ),
+                )
+            # Existing Google user without google_id recorded yet (from prior schema): bind identity
+            user = user_by_email
+            user.google_id = google_sub
+            if not user.display_name or user.display_name == "Demo User":
+                user.display_name = name
+            user.updated_at = datetime.now(timezone.utc)
+            db.commit()
+            db.refresh(user)
+        else:
+            # 3. Provision new user authenticated through Google
+            user = User(
+                id=uuid.uuid4(),
+                email=email,
+                display_name=name,
+                password_hash=None,
+                google_id=google_sub,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
     else:
-        # Update display_name if it was empty or default
+        # Existing verified user: update display_name if needed
         if not user.display_name or user.display_name == "Demo User":
             user.display_name = name
             user.updated_at = datetime.now(timezone.utc)
@@ -153,6 +178,51 @@ def google_login(
             email=user.email or email,
             created_at=user.created_at,
         ),
+    )
+
+
+@router.post(
+    "/google/link",
+    response_model=UserResponse,
+    summary="Link Google account to current authenticated user",
+)
+def link_google_account(
+    payload: GoogleLoginRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    settings = get_settings()
+    google_data = verify_google_credential(payload.credential, settings)
+    google_email = google_data["email"].lower()
+    google_sub = google_data["google_id"]
+
+    # Verify email matches current user email
+    if current_user.email and current_user.email.lower() != google_email:
+        raise AppException(
+            status_code=400,
+            code="GOOGLE_EMAIL_MISMATCH",
+            message=f"The Google account email ({google_email}) does not match your registered email ({current_user.email}).",
+        )
+
+    # Verify that this google_sub isn't already linked to another user
+    existing_link = db.scalar(select(User).where(User.google_id == google_sub, User.id != current_user.id))
+    if existing_link:
+        raise AppException(
+            status_code=409,
+            code="GOOGLE_ALREADY_LINKED",
+            message="This Google account is already linked to another Trace account.",
+        )
+
+    current_user.google_id = google_sub
+    current_user.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(current_user)
+
+    return UserResponse(
+        id=current_user.id,
+        name=current_user.display_name,
+        email=current_user.email or "",
+        created_at=current_user.created_at,
     )
 
 

@@ -288,7 +288,7 @@ describe('API Client', () => {
       await expect(getHealth()).rejects.toMatchObject({
         status: 0,
         code: 'BACKEND_UNAVAILABLE',
-        message: expect.stringContaining('Unable to connect to the backend'),
+        message: expect.stringContaining('Unable to connect to backend'),
       })
     })
 

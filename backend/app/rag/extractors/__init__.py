@@ -1,13 +1,21 @@
 """
 Document extractors factory and registry.
+Bridges file uploads to LangChain document loaders while retaining internal TextUnit representations.
 """
 
 from backend.app.core.errors import AppException
-from backend.app.rag.extractors.base import TextUnit, DocumentExtractor
+from backend.app.rag.extractors.base import (
+    TextUnit,
+    DocumentExtractor,
+    temporary_file_from_bytes,
+    langchain_doc_to_text_unit,
+    langchain_docs_to_text_units,
+)
 from backend.app.rag.extractors.pdf import PDFExtractor
 from backend.app.rag.extractors.docx import DOCXExtractor
 from backend.app.rag.extractors.markdown import MarkdownExtractor
 from backend.app.rag.extractors.txt import TXTExtractor
+from backend.app.rag.loaders import get_langchain_loader
 
 
 def get_extractor(file_type: str) -> DocumentExtractor:
@@ -37,4 +45,8 @@ __all__ = [
     "MarkdownExtractor",
     "TXTExtractor",
     "get_extractor",
+    "get_langchain_loader",
+    "temporary_file_from_bytes",
+    "langchain_doc_to_text_unit",
+    "langchain_docs_to_text_units",
 ]

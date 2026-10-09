@@ -317,13 +317,15 @@ def test_google_login_new_user(auth_client, test_db, monkeypatch):
     assert user.display_name == "Google Explorer"
 
 
-def test_google_login_existing_user(auth_client, test_db, monkeypatch):
-    """POST /api/auth/google authenticates existing user."""
-    # First create user via register
-    auth_client.post(
+def test_google_login_existing_password_account_requires_linking(auth_client, test_db, monkeypatch):
+    """POST /api/auth/google rejects silent merge if account has password, but allows explicit linking."""
+    # First create user via email/password register
+    reg_res = auth_client.post(
         "/api/auth/register",
         json={"name": "Existing Account", "email": "existing@example.com", "password": "password123"},
     )
+    assert reg_res.status_code == 201
+    auth_token = reg_res.json()["access_token"]
 
     def mock_verify(credential, settings, request_adapter=None):
         return {
@@ -338,14 +340,61 @@ def test_google_login_existing_user(auth_client, test_db, monkeypatch):
         mock_verify,
     )
 
+    # 1. Unauthenticated Google login attempts silent merge: REJECTED with 409
     res = auth_client.post(
         "/api/auth/google",
         json={"credential": "mock-token-for-existing-user"},
     )
-    assert res.status_code == 200
-    data = res.json()
-    assert "access_token" in data
-    assert data["user"]["email"] == "existing@example.com"
+    assert res.status_code == 409
+    assert res.json()["error"]["code"] == "ACCOUNT_EXISTS_WITH_PASSWORD"
+
+    # 2. Authenticated user links Google account via /api/auth/google/link
+    link_res = auth_client.post(
+        "/api/auth/google/link",
+        headers={"Authorization": f"Bearer {auth_token}"},
+        json={"credential": "mock-token-for-existing-user"},
+    )
+    assert link_res.status_code == 200
+    assert link_res.json()["email"] == "existing@example.com"
+
+    # 3. Once linked, Google login succeeds without entering password
+    login_res = auth_client.post(
+        "/api/auth/google",
+        json={"credential": "mock-token-for-existing-user"},
+    )
+    assert login_res.status_code == 200
+    assert login_res.json()["user"]["email"] == "existing@example.com"
+
+
+def test_google_login_repeat_for_google_registered_user(auth_client, test_db, monkeypatch):
+    """Users registered via Google can sign in repeatedly without conflicts."""
+    def mock_verify(credential, settings, request_adapter=None):
+        return {
+            "email": "pure.google@example.com",
+            "name": "Pure Google User",
+            "google_id": "google-sub-2222",
+            "picture": None,
+        }
+
+    monkeypatch.setattr(
+        "backend.app.api.routes.auth.verify_google_credential",
+        mock_verify,
+    )
+
+    # First sign in (provisions account)
+    res1 = auth_client.post(
+        "/api/auth/google",
+        json={"credential": "first-token"},
+    )
+    assert res1.status_code == 200
+
+    # Second sign in (authenticates existing google_id)
+    res2 = auth_client.post(
+        "/api/auth/google",
+        json={"credential": "second-token"},
+    )
+    assert res2.status_code == 200
+    assert res2.json()["user"]["email"] == "pure.google@example.com"
 
 
 def test_google_login_invalid_credential(auth_client, monkeypatch):

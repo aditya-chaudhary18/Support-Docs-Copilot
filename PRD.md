@@ -73,7 +73,7 @@ A Retrieval-Augmented Generation (RAG) web application that:
 
 1. Accepts uploaded technical documents (PDF, DOCX, TXT, Markdown).
 2. Stores the originals privately in Cloudflare R2.
-3. Extracts, cleans, and chunks the text, then embeds each chunk with a Gemini embedding model.
+3. Loads documents via LangChain document loaders (PyPDFLoader, StructuredDocxLoader, HeadingAwareMarkdownLoader, LineAwareTextLoader), cleans, and chunks the text, then embeds each chunk with a Gemini embedding model.
 4. Stores chunks and embeddings in Neon PostgreSQL using the pgvector extension.
 5. At question time, embeds the question, retrieves the most similar chunks via vector similarity search, and instructs Gemini to answer **only** from those chunks.
 6. Returns the answer together with verifiable source citations (document name, page or section), and explicitly declines when the documentation does not contain the answer.
@@ -160,10 +160,13 @@ These are thin libraries required to make the approved stack work. They are not 
 | pgvector client | `pgvector` Python package | Native vector type support and HNSW cosine distance queries |
 | Migrations | Alembic (v1.13+) | Reproducible schema management and version control |
 | R2 access | boto3 (R2 is S3-compatible) | S3-compatible client for Cloudflare R2 object storage |
-| Gemini access | Google GenAI Python SDK (`google-genai`) | Official client for Gemini 2.5 Flash and text-embedding-004 |
-| PDF extraction | pypdf (v5.x) | Page-aware PDF text extraction with metadata preservation |
-| DOCX extraction | python-docx (v1.1+) | DOCX paragraph and heading hierarchy extraction |
-| Testing | pytest, pytest-asyncio, httpx (backend); Vitest (frontend) | Automated unit, security, and integration test suites |
+| Gemini access | Google GenAI Python SDK (`google-genai`) | Official client for Gemini models and text-embedding-004 / gemini-embedding-001 |
+| Document loaders (LangChain) | `langchain-core` (>=0.3.0,<2.0.0), `langchain-community` (>=0.3.0,<1.0.0) | Standardized LangChain document loading interfaces, BaseLoader protocol, and PyPDFLoader |
+| PDF loader & parsing | PyPDFLoader (`langchain-community`) + `pypdf` (v5.x) | Page-aware PDF loading with 1-based page metadata preservation |
+| DOCX loader & parsing | StructuredDocxLoader (`BaseLoader`) + `python-docx` (v1.1+) | Heading hierarchy, paragraph structure, and table extraction in document body order |
+| Markdown loader & parsing | HeadingAwareMarkdownLoader (`BaseLoader`) | Heading-aware section splitting and code-block preservation |
+| Text loader & parsing | LineAwareTextLoader (`BaseLoader`) / TextLoader (`langchain-community`) | Line-range tracking and paragraph-aware text unit generation |
+| Testing | pytest, pytest-asyncio, httpx (backend); Vitest (frontend) | Automated unit, security, regression, and integration test suites |
 
 ### 3.3 Explicitly NOT USED
 
@@ -317,14 +320,20 @@ A separate `processing_stage` value (`extracting`, `cleaning`, `chunking`, `embe
 | FR-STO-02 | PostgreSQL (Neon) shall store document metadata: `document_id`, `filename`, `file_type`, `file_size`, `r2_object_key`, `uploaded_at` (upload timestamp), `status`, `chunk_count`, `processing_error`, plus `content_hash`, `owner_id`, `page_count`, `embedding_model`, `processed_at`. |
 | FR-STO-03 | The backend shall not persist uploaded files on local disk. Temporary in-memory buffers or OS temp files used during processing shall be deleted immediately after processing (success or failure). |
 
-### 6.4 Document Processing
+### 6.4 Document Processing & LangChain Loaders
 
 | ID | Requirement |
 |---|---|
-| FR-PROC-01 | **Text extraction** shall be page-aware for PDF (one text unit per page), heading-aware for DOCX and Markdown, and line-aware for TXT. |
+| FR-PROC-01 | **LangChain Document Loading**: Text extraction shall use standardized LangChain document loaders (`langchain-core` / `langchain-community`) behind the extraction interface, producing LangChain `Document` instances that are adapted into internal `TextUnit` representations. |
+| FR-PROC-01a | **PDF Loader**: PDF extraction shall use LangChain's `PyPDFLoader` (`langchain_community.document_loaders.pdf.PyPDFLoader`). It shall be page-aware, mapping 0-indexed page metadata to 1-based `page_number` and setting `source_location = "Page X"`. Enforces `MAX_PDF_PAGES` and traps corrupt or unreadable PDFs. |
+| FR-PROC-01b | **DOCX Loader**: Word document extraction shall use `StructuredDocxLoader` (custom loader implementing LangChain `BaseLoader` powered by `python-docx`). It traverses body elements in true document order, preserving heading hierarchy as `section_title` (`source_location = "Section: <Heading>"`) and preserving table row content with ` | ` cell separation. |
+| FR-PROC-01c | **Markdown Loader**: Markdown extraction shall use `HeadingAwareMarkdownLoader` (custom loader implementing LangChain `BaseLoader`). It splits content on heading boundaries (`#` through `######`) while strictly ignoring `#` comments inside fenced code blocks (` ``` `), preserving section context and code structure. |
+| FR-PROC-01d | **Text Loader**: Plain text extraction shall use `LineAwareTextLoader` (custom loader implementing LangChain `BaseLoader` with `TextLoader` fallback compatibility). It groups paragraph blocks while retaining exact 1-based start and end line numbers (`source_location = "Lines X–Y"` or `"Line X"`). |
+| FR-PROC-01e | **Ephemeral File Lifecycle**: Loaders requiring filesystem paths shall use `temporary_file_from_bytes`, an OS-safe context manager that flushes, closes, and yields an ephemeral file, with guaranteed deletion in a `finally` block upon completion or failure. No documents are stored permanently on local disk. |
+| FR-PROC-01f | **Document Adapter**: LangChain `Document` objects shall be adapted into internal `TextUnit` dataclasses via `langchain_doc_to_text_unit` and `langchain_docs_to_text_units`, preserving page numbers, section titles, and source location strings. |
 | FR-PROC-02 | **Cleaning** shall normalize Unicode (NFKC), normalize line endings, remove null/control characters, de-hyphenate words split across lines in PDFs where safe, collapse excessive whitespace/blank lines while preserving paragraph breaks and code blocks, and remove repeated page headers/footers where reliably detectable (optional/S). |
 | FR-PROC-03 | Code blocks and lists in Markdown/DOCX shall be preserved as intact as practical because technical documentation depends on them. |
-| FR-PROC-04 | If extraction yields no meaningful text (empty or below `MIN_EXTRACTED_CHARS`, e.g., scanned PDFs), the document shall be marked `failed` with a message such as "No extractable text found. Scanned documents are not supported." |
+| FR-PROC-04 | If extraction yields no meaningful text (empty or below `MIN_EXTRACTED_CHARS`, e.g., scanned PDFs), the document shall be marked `failed` with a message such as "No extractable text found in this document. Scanned documents and image-only PDFs are not supported in MVP." |
 | FR-PROC-05 | **Chunking** shall follow §8 and produce chunks with the metadata below. |
 | FR-PROC-06 | **Source tracking**: each chunk shall record enough metadata to identify its origin. |
 
@@ -361,8 +370,9 @@ A separate `processing_stage` value (`extracting`, `cleaning`, `chunking`, `embe
 ### 7.1 Ingestion Pipeline
 
 ```
-Upload → Cloudflare R2 → Text Extraction → Text Cleaning → Chunking
-       → Embedding Generation → PostgreSQL + pgvector → Processing Complete
+Upload → Validation → Cloudflare R2 Storage → LangChain Document Loading
+       → Text Cleaning & Normalization → Structure-Aware Chunking
+       → Gemini Embeddings → PostgreSQL + pgvector → Status: ready
 ```
 
 | Stage | Description | Failure behavior |
@@ -370,7 +380,7 @@ Upload → Cloudflare R2 → Text Extraction → Text Cleaning → Chunking
 | **1. Upload & validate** | Receive multipart file. Validate extension, MIME, magic bytes, size, non-empty. Compute SHA-256. Check duplicate. | Reject with 4xx; nothing stored |
 | **2. Store in R2** | Generate `document_id` (UUID). Upload bytes to private bucket at `documents/{document_id}/{sanitized_filename}`. Insert `documents` row (`status = uploaded`). | On R2 failure: no DB row remains (or row removed); user sees "storage unavailable" |
 | **3. Start processing** | Return `202 Accepted` with the document record. Processing runs in-process via FastAPI background tasks (no external queue). Status becomes `processing`. | See below |
-| **4. Text extraction** | Retrieve bytes (from memory buffer or by reading the R2 object). Extract text per file type into ordered *text units* (pages / sections / line groups). | `failed` + message |
+| **4. LangChain document loading** | Download file from R2 (or memory buffer). Instantiate appropriate LangChain document loader (`PyPDFLoader`, `StructuredDocxLoader`, `HeadingAwareMarkdownLoader`, `LineAwareTextLoader`) using ephemeral temp file context. Convert LangChain `Document` objects to structured `TextUnit`s preserving page numbers, headings, and line ranges. | `failed` + user-safe message |
 | **5. Text cleaning** | Normalize and clean each unit (FR-PROC-02). Drop units that are empty after cleaning. | `failed` if nothing remains |
 | **6. Chunking** | Split units into chunks with overlap and attach metadata (§8). Enforce `MAX_CHUNKS_PER_DOCUMENT`. | `failed` if limit exceeded |
 | **7. Embedding generation** | Embed chunks in batches with the document-embedding task type (§9). Retry with exponential backoff on 429/5xx. | `failed` after retry budget exhausted |
@@ -1326,13 +1336,13 @@ Support-Docs-Copilot/
 │   │   ├── schemas/            # Pydantic v2 request/response schemas, Gemini structured output models
 │   │   ├── services/           # auth_service, chat_service, conversation_service, gemini, google_auth_service,
 │   │   │                       # ingestion, pdf_export_service, storage (Cloudflare R2)
-│   │   ├── rag/                # extractors/, cleaner, chunker, embedder, retriever, context_builder,
-│   │   │                       # prompt, citation_builder, pipeline
+│   │   ├── rag/                # loaders/ (LangChain loaders), extractors/, cleaner, chunker,
+│   │   │                       # embedder, retriever, context_builder, prompt, citation_builder, pipeline
 │   │   └── main.py             # FastAPI app factory, CORS, exception handlers, health route
 │   │
 │   ├── alembic/                # database migrations & migration environment
-│   ├── tests/                  # api/, fixtures/, rag/, security/, unit/, conftest.py
-│   ├── requirements.txt        # pinned backend Python dependencies
+│   ├── tests/                  # api/, fixtures/, rag/, security/, unit/ (including test_langchain_loaders.py), conftest.py
+│   ├── requirements.txt        # pinned backend Python dependencies (including langchain-core, langchain-community)
 │   └── Dockerfile              # backend container specification
 │
 ├── frontend/
@@ -1398,7 +1408,7 @@ Support-Docs-Copilot/
 | Layer | Scope | Tools |
 |---|---|---|
 | **Unit** | Cleaner, chunker (size/overlap/boundaries/metadata), filename sanitizer, file validator, citation builder, prompt builder, settings validation | pytest |
-| **Document processing** | Extractors on fixture PDF/DOCX/TXT/MD; page tracking; empty and corrupt files | pytest + fixtures in `backend/tests/fixtures` |
+| **Document processing & loaders** | LangChain document loaders (`PyPDFLoader`, `StructuredDocxLoader`, `HeadingAwareMarkdownLoader`, `LineAwareTextLoader`), adapters (`langchain_doc_to_text_unit`), ephemeral temp-file lifecycle cleanup, empty and corrupt files | pytest (`backend/tests/unit/test_langchain_loaders.py`, `test_extraction_and_chunking.py`) |
 | **Vector search** | Retrieval against a real **Neon test branch** with pgvector: ordering, Top-K, threshold filtering, owner/status filtering, cascade delete removes vectors | pytest against a dedicated Neon test database (no local Postgres); embeddings may be deterministic fakes with the configured dimension |
 | **RAG pipeline** | End-to-end pipeline with Gemini mocked (deterministic responses): grounded answer, insufficient context, invalid citations, malformed JSON | pytest with mocks |
 | **API** | Endpoint contracts, status codes, error bodies, validation | FastAPI TestClient/httpx; R2 and Gemini mocked |
@@ -1432,6 +1442,11 @@ Automated tests must **not** require real Gemini or R2 credentials by default (m
 | T-18 | Gemini 429 / timeout | Retried with backoff; then friendly error; document/messages consistent |
 | T-19 | No documents ready | 409 `NO_DOCUMENTS_READY`; UI shows empty state |
 | T-20 | Secrets not leaked | Logs and error bodies contain no credentials; frontend bundle contains no secrets (CI grep check) |
+| T-21 | PyPDFLoader multi-page extraction | 1-based page metadata (`page_number`, `source_location = "Page X"`) strictly preserved across all pages |
+| T-22 | StructuredDocxLoader headings & tables | Headings mapped to `section_title`; tables extracted with cell delimiters in document body order |
+| T-23 | HeadingAwareMarkdownLoader code blocks | Headings split sections; `#` inside fenced code blocks not mistaken for headings |
+| T-24 | LineAwareTextLoader line ranges | Paragraph boundaries preserved with 1-based `Lines X–Y` line ranges in metadata |
+| T-25 | Ephemeral temporary file cleanup | Temporary files safely unlinked on completion and on exception (zero disk leak) |
 
 ### 26.3 CI
 
@@ -1640,9 +1655,9 @@ flowchart TD
 flowchart LR
     A[Upload] --> B[Validate<br/>type, size, signature, hash]
     B --> C[(Cloudflare R2<br/>private bucket)]
-    C --> D[Text Extraction]
-    D --> E[Text Cleaning]
-    E --> F[Chunking<br/>+ metadata]
+    C --> D[LangChain Document Loading<br/>PyPDFLoader, StructuredDocxLoader,<br/>HeadingAwareMarkdownLoader, LineAwareTextLoader]
+    D --> E[Text Cleaning & Normalization]
+    E --> F[Structure-Aware Chunking<br/>+ metadata]
     F --> G[Embedding Generation<br/>Gemini]
     G --> H[(Neon PostgreSQL<br/>+ pgvector)]
     H --> I[Status: ready]
